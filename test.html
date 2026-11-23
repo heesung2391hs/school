@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>재난 대피 최단 경로 탐색 시뮬레이터 (BFS)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+        
+        .container {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+        /* 상단 헤더 */
+        
+        header {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 20px 24px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15);
+        }
+        
+        header h1 {
+            margin: 0 0 6px 0;
+            font-size: 22px;
+        }
+        
+        header p {
+            margin: 0;
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+        /* 초보자용 원리 안내 박스 */
+        
+        .guide-box {
+            background: #e0f2fe;
+            border-left: 5px solid #0284c7;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            line-height: 1.65;
+        }
+        /* 메인 2단 레이아웃 */
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 18px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        
+        .card h2 {
+            margin: 0 0 12px 0;
+            font-size: 17px;
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        /* 버튼 및 컨트롤 */
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        button,
+        select {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            background: #ffffff;
+            color: #1e293b;
+            transition: all 0.15s ease;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        
+        button.primary {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            font-weight: bold;
+        }
+        
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+        
+        button.active-tool {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+            font-weight: bold;
+        }
+        
+        button.preset-btn {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        /* 격자 맵 */
+        
+        .grid-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8fafc;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .grid-board {
+            display: grid;
+            gap: 3px;
+            background: #94a3b8;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        
+        .cell {
+            width: 42px;
+            height: 42px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            border-radius: 3px;
+            transition: background 0.15s;
+        }
+        
+        .cell.wall {
+            background: #ef4444;
+            color: #ffffff;
+            font-size: 16px;
+        }
+        
+        .cell.start {
+            background: #2563eb !important;
+            color: #ffffff !important;
+        }
+        
+        .cell.exit {
+            background: #16a34a !important;
+            color: #ffffff !important;
+        }
+        
+        .cell.queued {
+            background: #fef08a;
+            color: #854d0e;
+        }
+        
+        .cell.visited {
+            background: #bae6fd;
+            color: #0369a1;
+        }
+        
+        .cell.current {
+            outline: 3px solid #f97316;
+            z-index: 2;
+        }
+        
+        .cell.path {
+            background: #22c55e !important;
+            color: #ffffff !important;
+        }
+        /* 범례 */
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 12px;
+            margin-top: 12px;
+            justify-content: center;
+            color: #475569;
+        }
+        
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .dot {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            display: inline-block;
+            border: 1px solid #94a3b8;
+        }
+        /* 우측 상태 및 로그 패널 */
+        
+        .status-panel {
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+        
+        .step-badge {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        
+        .log-box {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            min-height: 58px;
+            margin: 8px 0 14px 0;
+            line-height: 1.5;
+        }
+        
+        .queue-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            border-radius: 8px;
+            min-height: 48px;
+            max-height: 90px;
+            overflow-y: auto;
+            font-family: Consolas, monospace;
+            font-size: 12.5px;
+            margin: 6px 0 16px 0;
+        }
+        
+        .result-box {
+            padding: 14px;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            line-height: 1.65;
+        }
+        
+        .result-success {
+            background: #dcfce7;
+            border-color: #22c55e;
+            color: #14532d;
+        }
+        
+        .result-fail {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #7f1d1d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🚨 재난 발생 시 최단 대피 경로 탐색 시뮬레이터 (BFS)</h1>
+            <p>너비 우선 탐색(Breadth-First Search)을 활용하여 화재·장애물을 피한 최단 비상구 경로를 단계별로 체험합니다.</p>
+        </header>
+
+        <div class="guide-box">
+            <strong>💡 알고리즘을 처음 접하는 학생을 위한 원리 설명:</strong><br> 너비 우선 탐색(BFS)은 요구조자의 출발 위치에서 가까운 인접 통로(거리 1칸 → 2칸 → 3칸...)를 <strong>물결이 퍼지듯 순서대로</strong> 확인하는 탐색 방법입니다. 모든 통로의 이동 비용이 동일할 때, 먼저 들어온 좌표를 먼저 꺼내는 <strong>큐(Queue, 선입선출)</strong>를 사용해 탐색하다가 <strong>가장 먼저 도달한 비상구</strong>가
+            반드시 최단 대피 경로가 됩니다.
+        </div>
+
+        <div class="main-grid">
+            <!-- 좌측: 입력 및 지도 시각화 -->
+            <div class="card">
+                <h2>1. 재난 현장 지도 설정 (사용자 입력)</h2>
+                <div class="controls">
+                    <select id="sizeSelect" onchange="changeSize()">
+          <option value="6">격자 크기: 6 × 6</option>
+          <option value="8" selected>격자 크기: 8 × 8</option>
+          <option value="10">격자 크기: 10 × 10</option>
+        </select>
+                    <button id="toolWall" class="active-tool" onclick="setTool('wall')">🔥 장애물/화재 배치</button>
+                    <button id="toolStart" onclick="setTool('start')">🏃 출발 위치 설정</button>
+                    <button id="toolExit" onclick="setTool('exit')">🚪 비상구 추가/제거</button>
+                </div>
+
+                <div class="controls">
+                    <button class="preset-btn" onclick="loadPreset('basic')">시나리오1: 기본 대피</button>
+                    <button class="preset-btn" onclick="loadPreset('detour')">시나리오2: 화재 우회</button>
+                    <button class="preset-btn" onclick="loadPreset('blocked')">시나리오3: 전 출구 차단(예외)</button>
+                    <button onclick="clearWalls()">통로 초기화</button>
+                </div>
+
+                <div class="grid-wrapper">
+                    <div id="gridBoard" class="grid-board"></div>
+                </div>
+
+                <div class="legend">
+                    <span><i class="dot" style="background:#2563eb"></i>출발 위치</span>
+                    <span><i class="dot" style="background:#16a34a"></i>비상구</span>
+                    <span><i class="dot" style="background:#ef4444"></i>화재/장애물</span>
+                    <span><i class="dot" style="background:#fef08a"></i>큐(Queue) 대기</span>
+                    <span><i class="dot" style="background:#bae6fd"></i>탐색 완료(거리)</span>
+                    <span><i class="dot" style="background:#22c55e"></i>최단 대피 경로</span>
+                </div>
+            </div>
+
+            <!-- 우측: 단계별 실행 과정 및 결과 -->
+            <div class="card status-panel">
+                <h2>2. 알고리즘 단계별 동작 과정</h2>
+                <div class="controls">
+                    <button class="primary" onclick="runSimulation()">▶ 시뮬레이션 실행</button>
+                    <button id="btnPrev" onclick="prevStep()" disabled>◀ 이전 단계</button>
+                    <button id="btnNext" onclick="nextStep()" disabled>다음 단계 ▶</button>
+                    <button id="btnAuto" onclick="toggleAuto()" disabled>⏯ 자동 재생</button>
+                </div>
+
+                <div><strong>현재 진행 단계:</strong> <span id="stepIndicator" class="step-badge">대기 중</span></div>
+                <div class="log-box" id="stepLog">좌측 지도에서 출발지·비상구·장애물을 설정한 뒤 [시뮬레이션 실행] 버튼을 눌러주세요.</div>
+
+                <div><strong>큐(Queue) 대기 목록 (다음에 탐색할 인접 좌표):</strong></div>
+                <div class="queue-box" id="queueDisplay">[]</div>
+
+                <h2>3. 최종 실행 결과 및 해설</h2>
+                <div class="result-box" id="resultBox">
+                    탐색을 실행하고 마지막 단계까지 진행하면 최단 대피 거리와 경로 설명이 표시됩니다.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rows = 8,
+            cols = 8;
+        let grid = [];
+        let startPos = [1, 1];
+        let exits = [
+            [6, 6]
+        ];
+        let currentTool = 'wall';
+        let simResult = null;
+        let currentStepIdx = 0;
+        let autoTimer = null;
+
+        // ==========================================
+        // 핵심 알고리즘: 너비 우선 탐색(BFS) 구현부
+        // ==========================================
+        function runBFS(rows, cols, grid, start, exits) {
+            const [sr, sc] = start;
+            const exitSet = new Set(exits.map(e => `${e[0]},${e[1]}`));
+
+            const queue = [
+                [sr, sc]
+            ]; // 선입선출(FIFO) 큐
+            const visited = Array.from({
+                length: rows
+            }, () => Array(cols).fill(false));
+            const dist = Array.from({
+                length: rows
+            }, () => Array(cols).fill(-1));
+            const parent = {}; // 최단 경로 역추적용 기록
+
+            visited[sr][sc] = true;
+            dist[sr][sc] = 0;
+
+            const steps = [];
+            const directions = [
+                [-1, 0, '상'],
+                [1, 0, '하'],
+                [0, -1, '좌'],
+                [0, 1, '우']
+            ];
+
+            // Step 0: 초기 상태 기록
+            steps.push({
+                step: 0,
+                current: [sr, sc],
+                queue: [
+                    [sr, sc]
+                ],
+                visited: visited.map(row => [...row]),
+                dist: dist.map(row => [...row]),
+                log: `초기화: 출발 위치 (${sr}, ${sc})를 큐(Queue)에 삽입하고 시작 거리를 0으로 설정합니다.`
+            });
+
+            let stepNum = 0;
+            let foundExit = null;
+
+            while (queue.length > 0) {
+                stepNum++;
+                const [r, c] = queue.shift(); // 큐의 맨 앞 원소 추출
+
+                // 현재 위치가 비상구인지 확인
+                if (exitSet.has(`${r},${c}`)) {
+                    foundExit = [r, c];
+                    steps.push({
+                        step: stepNum,
+                        current: [r, c],
+                        queue: queue.map(q => [...q]),
+                        visited: visited.map(row => [...row]),
+                        dist: dist.map(row => [...row]),
+                        log: `비상구 도착! (${r}, ${c}) 출구에 최단 거리 ${dist[r][c]}칸 만에 도달하여 탐색을 종료합니다.`
+                    });
+                    break;
+                }
+
+                const addedNeighbors = [];
+                for (const [dr, dc, dirName] of directions) {
+                    const nr = r + dr;
+                    const nc = c + dc;
+
+                    // 격자 범위 내이고, 장애물(1)이 아니며, 아직 방문하지 않은 칸인 경우
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                        if (grid[nr][nc] === 0 && !visited[nr][nc]) {
+                            visited[nr][nc] = true;
+                            dist[nr][nc] = dist[r][c] + 1;
+                            parent[`${nr},${nc}`] = [r, c];
+                            queue.push([nr, nc]);
+                            addedNeighbors.push(`${dirName}(${nr},${nc})`);
+                        }
+                    }
+                }
+
+                const neighborMsg = addedNeighbors.length > 0 ? addedNeighbors.join(', ') : '추가 가능한 인접 통로 없음';
+                steps.push({
+                    step: stepNum,
+                    current: [r, c],
+                    queue: queue.map(q => [...q]),
+                    visited: visited.map(row => [...row]),
+                    dist: dist.map(row => [...row]),
+                    log: `위치 (${r}, ${c}) 탐색 (거리 ${dist[r][c]}칸): 인접 칸 확인 → [${neighborMsg}]`
+                });
+            }
+
+            // 최단 대피 경로 역추적
+            const path = [];
+            if (foundExit) {
+                let curr = foundExit;
+                while (curr[0] !== sr || curr[1] !== sc) {
+                    path.push([...curr]);
+                    curr = parent[`${curr[0]},${curr[1]}`];
+                }
+                path.push([sr, sc]);
+                path.reverse();
+            }
+
+            let visitedCount = 0;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (visited[r][c]) visitedCount++;
+                }
+            }
+
+            return {
+                success: foundExit !== null,
+                exit: foundExit,
+                distance: foundExit ? dist[foundExit[0]][foundExit[1]] : -1,
+                visitedCount,
+                path,
+                steps
+            };
+        }
+
+        // ==========================================
+        // UI 제어 및 단계별 시각화 렌더링부
+        // ==========================================
+        function setTool(tool) {
+            currentTool = tool;
+            ['toolWall', 'toolStart', 'toolExit'].forEach(id => {
+                document.getElementById(id).classList.remove('active-tool');
+            });
+            if (tool === 'wall') document.getElementById('toolWall').classList.add('active-tool');
+            if (tool === 'start') document.getElementById('toolStart').classList.add('active-tool');
+            if (tool === 'exit') document.getElementById('toolExit').classList.add('active-tool');
+        }
+
+        function changeSize() {
+            const s = parseInt(document.getElementById('sizeSelect').value, 10);
+            rows = s;
+            cols = s;
+            grid = Array.from({
+                length: rows
+            }, () => Array(cols).fill(0));
+            startPos = [1, 1];
+            exits = [
+                [s - 2, s - 2]
+            ];
+            stopAuto();
+            simResult = null;
+            resetStatusUI();
+            renderBoard();
+        }
+
+        function clearWalls() {
+            grid = Array.from({
+                length: rows
+            }, () => Array(cols).fill(0));
+            stopAuto();
+            simResult = null;
+            resetStatusUI();
+            renderBoard();
+        }
+
+        function loadPreset(type) {
+            stopAuto();
+            simResult = null;
+            document.getElementById('sizeSelect').value = '8';
+            rows = 8;
+            cols = 8;
+            grid = Array.from({
+                length: 8
+            }, () => Array(8).fill(0));
+            startPos = [1, 1];
+            exits = [
+                [6, 6]
+            ];
+
+            if (type === 'basic') {
+                // 시나리오 1: 기본 장애물 회피 대피
+                [
+                    [2, 3],
+                    [3, 3],
+                    [4, 3]
+                ].forEach(([r, c]) => grid[r][c] = 1);
+            } else if (type === 'detour') {
+                // 시나리오 2: 다중 비상구 중 더 가까운 출구 선택 및 화재 우회
+                exits = [
+                    [1, 6],
+                    [6, 6]
+                ];
+                [
+                    [0, 4],
+                    [1, 4],
+                    [2, 4],
+                    [3, 4],
+                    [4, 4],
+                    [5, 2],
+                    [5, 3],
+                    [5, 4]
+                ].forEach(([r, c]) => grid[r][c] = 1);
+            } else if (type === 'blocked') {
+                // 시나리오 3: 모든 출구가 화재로 차단된 예외 상황
+                [
+                    [5, 6],
+                    [6, 5],
+                    [5, 5],
+                    [7, 5],
+                    [5, 7]
+                ].forEach(([r, c]) => {
+                    if (r < 8 && c < 8) grid[r][c] = 1;
+                });
+            }
+            resetStatusUI();
+            renderBoard();
+        }
+
+        function resetStatusUI() {
+            document.getElementById('stepIndicator').innerText = '대기 중';
+            document.getElementById('stepLog').innerText = '지도 조건이 설정되었습니다. [시뮬레이션 실행] 버튼을 눌러주세요.';
+            document.getElementById('queueDisplay').innerText = '[]';
+            const rBox = document.getElementById('resultBox');
+            rBox.className = 'result-box';
+            rBox.innerText = '탐색을 실행하면 결과가 이곳에 표시됩니다.';
+            ['btnPrev', 'btnNext', 'btnAuto'].forEach(id => document.getElementById(id).disabled = true);
+        }
+
+        function handleCellClick(r, c) {
+            stopAuto();
+            simResult = null;
+            resetStatusUI();
+
+            const isStart = (startPos[0] === r && startPos[1] === c);
+            const exitIdx = exits.findIndex(e => e[0] === r && e[1] === c);
+
+            if (currentTool === 'wall') {
+                if (!isStart && exitIdx === -1) {
+                    grid[r][c] = grid[r][c] === 1 ? 0 : 1;
+                }
+            } else if (currentTool === 'start') {
+                if (grid[r][c] === 0 && exitIdx === -1) {
+                    startPos = [r, c];
+                }
+            } else if (currentTool === 'exit') {
+                if (!isStart && grid[r][c] === 0) {
+                    if (exitIdx > -1) {
+                        if (exits.length > 1) exits.splice(exitIdx, 1);
+                    } else {
+                        exits.push([r, c]);
+                    }
+                }
+            }
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('gridBoard');
+            board.style.gridTemplateColumns = `repeat(${cols}, 42px)`;
+            board.innerHTML = '';
+
+            const stepData = simResult ? simResult.steps[currentStepIdx] : null;
+            const isLastStep = simResult && (currentStepIdx === simResult.steps.length - 1);
+            const queueSet = new Set(stepData ? stepData.queue.map(q => `${q[0]},${q[1]}`) : []);
+            const pathSet = new Set((isLastStep && simResult.success) ? simResult.path.map(p => `${p[0]},${p[1]}`) : []);
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    const key = `${r},${c}`;
+                    const isStart = (startPos[0] === r && startPos[1] === c);
+                    const isExit = exits.some(e => e[0] === r && e[1] === c);
+
+                    if (grid[r][c] === 1) {
+                        cell.classList.add('wall');
+                        cell.innerHTML = '🔥';
+                    } else if (isStart) {
+                        cell.classList.add('start');
+                        cell.innerHTML = '출발';
+                    } else if (isExit) {
+                        cell.classList.add('exit');
+                        cell.innerHTML = '출구';
+                    }
+
+                    if (stepData && grid[r][c] === 0) {
+                        if (pathSet.has(key) && !isStart && !isExit) {
+                            cell.classList.add('path');
+                        } else if (queueSet.has(key)) {
+                            cell.classList.add('queued');
+                        } else if (stepData.visited[r][c]) {
+                            cell.classList.add('visited');
+                        }
+
+                        if (stepData.current[0] === r && stepData.current[1] === c) {
+                            cell.classList.add('current');
+                        }
+
+                        if (stepData.dist[r][c] > 0 && !isStart && !isExit) {
+                            cell.innerHTML = `<span>${stepData.dist[r][c]}</span>`;
+                        }
+                    }
+
+                    cell.title = `좌표 (${r}, ${c})`;
+                    cell.onclick = () => handleCellClick(r, c);
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function runSimulation() {
+            stopAuto();
+            simResult = runBFS(rows, cols, grid, startPos, exits);
+            currentStepIdx = 0;
+            updateStepView();
+            ['btnPrev', 'btnNext', 'btnAuto'].forEach(id => document.getElementById(id).disabled = false);
+        }
+
+        function updateStepView() {
+            if (!simResult) return;
+            const total = simResult.steps.length - 1;
+            const s = simResult.steps[currentStepIdx];
+
+            document.getElementById('stepIndicator').innerText = `${currentStepIdx} / ${total} 단계`;
+            document.getElementById('stepLog').innerText = s.log;
+            document.getElementById('queueDisplay').innerText =
+                s.queue.length > 0 ? s.queue.map(q => `(${q[0]},${q[1]})`).join(' → ') : '[비어 있음]';
+
+            const rBox = document.getElementById('resultBox');
+            if (currentStepIdx === total) {
+                if (simResult.success) {
+                    rBox.className = 'result-box result-success';
+                    rBox.innerHTML = `
+          <strong>✅ 최단 대피 경로 탐색 성공!</strong><br>
+          • 선택된 비상구: <strong>(${simResult.exit[0]}, ${simResult.exit[1]})</strong><br>
+          • 최단 대피 거리: <strong>${simResult.distance}칸</strong> (총 ${simResult.visitedCount}개 구역 탐색)<br>
+          • 이동 경로 순서: ${simResult.path.map(p => `(${p[0]},${p[1]})`).join(' → ')}<br><br>
+          <strong>📌 결과 해설:</strong> BFS는 출발지에서 거리가 1칸, 2칸, 3칸인 인접 칸을 순서대로 확장합니다.
+          따라서 여러 통로와 비상구 중 가장 먼저 도달한 <strong>(${simResult.exit[0]}, ${simResult.exit[1]})</strong> 비상구가 장애물을 피하면서도 가장 짧은 거리로 탈출할 수 있는 최적 경로입니다.
+        `;
+      } else {
+        rBox.className = 'result-box result-fail';
+        rBox.innerHTML = `
+          <strong>🚨 대피 불가 (모든 비상구 통로 차단됨)</strong><br>
+          • 탐색한 안전 구역: 총 ${simResult.visitedCount}칸<br><br>
+          <strong>📌 결과 해설:</strong> 출발지에서 이동 가능한 모든 인접 칸(큐)을 탐색했으나 어떤 비상구에도 도달하지 못했습니다.
+          화재·장애물로 인해 완전히 고립된 예외 상황이며, 실제 현장에서는 구조대 진입이나 방화 구역 대기가 필요합니다.
+        `;
+      }
+    } else {
+      rBox.className = 'result-box';
+      rBox.innerText = '탐색이 진행 중입니다. [다음 단계 ▶] 또는 [⏯ 자동 재생]으로 마지막 단계까지 확인하세요.';
+    }
+
+    renderBoard();
+  }
+
+  function nextStep() {
+    if (simResult && currentStepIdx < simResult.steps.length - 1) {
+      currentStepIdx++;
+      updateStepView();
+    } else {
+      stopAuto();
+    }
+  }
+
+  function prevStep() {
+    if (simResult && currentStepIdx > 0) {
+      currentStepIdx--;
+      updateStepView();
+    }
+  }
+
+  function toggleAuto() {
+    if (autoTimer) {
+      stopAuto();
+      return;
+    }
+    if (currentStepIdx >= simResult.steps.length - 1) {
+      currentStepIdx = 0;
+    }
+    document.getElementById('btnAuto').innerText = '⏸ 일시정지';
+    autoTimer = setInterval(nextStep, 300);
+  }
+
+  function stopAuto() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+    document.getElementById('btnAuto').innerText = '⏯ 자동 재생';
+  }
+
+  // 초기 화면 로드
+  loadPreset('basic');
+    </script>
+</body>
+
+</html>
